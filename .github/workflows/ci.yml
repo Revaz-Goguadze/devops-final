@@ -49,14 +49,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trivy filesystem (deps + IaC misconfig + secrets)
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: fs
-          scan-ref: .
-          scanners: vuln,misconfig,secret
-          severity: HIGH,CRITICAL
-          exit-code: "1"
-          ignore-unfixed: true
+        run: |
+          docker run --rm -v "$PWD:/src" aquasec/trivy:0.65.0 fs \
+            --scanners vuln,misconfig,secret \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress /src
 
       - name: pip-audit (Python dependency CVEs)
         run: |
@@ -75,13 +71,9 @@ jobs:
         run: docker compose build
 
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: image
-          image-ref: final-app:latest
-          severity: HIGH,CRITICAL
-          exit-code: "1"
-          ignore-unfixed: true
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.65.0 image \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress final-app:latest
 
       - name: Start stack
         run: docker compose up -d
