@@ -25,12 +25,13 @@ docker run --rm -v "$PWD:/src" aquasec/trivy:latest fs \
   --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress /src || fail=1
 
 hr "3/5 Trivy — container image"
-if docker image inspect final-app:latest >/dev/null 2>&1; then
-  docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image \
-    --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress final-app:latest || fail=1
-else
-  echo "SKIPPED: final-app:latest not built yet (run 'make up' first)."
+# Ensure the image exists so image scanning is never silently skipped.
+if ! docker image inspect final-app:latest >/dev/null 2>&1; then
+  echo "final-app:latest not present — building it for the scan..."
+  docker compose build app
 fi
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image \
+  --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress final-app:latest || fail=1
 
 hr "4/5 gitleaks — secret scanning"
 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
