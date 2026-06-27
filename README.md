@@ -333,8 +333,20 @@ image, gitleaks, and pip-audit:
 ![Trivy clean, gitleaks no leaks, pip-audit clean — scan PASSED](docs/security-scan-2.png)
 
 #### CI/CD pipeline
-GitHub Actions running lint/test, security, and build-verify jobs:
+GitHub Actions — all three jobs green. Run summary (Status **Success**, gitleaks
+"No leaks detected"):
 
-![CI pipeline green](docs/ci-pipeline.png)
+![CI pipeline summary — success](docs/ci-pipeline-1.png)
 
-> `docs/ci-pipeline.png` is captured from the Actions tab after the first push.
+`Lint & Test` job — ruff + pytest:
+
+![CI Lint & Test job](docs/ci-pipeline-2.png)
+
+`Security scans` job — hadolint, gitleaks, Trivy filesystem, pip-audit all pass:
+
+![CI Security scans job](docs/ci-pipeline-3.png)
+
+`Build, scan image & verify deployment` job — Trivy image scan + post-deploy
+verification on the runner:
+
+![CI build, scan image & verify job](docs/ci-pipeline-4.png)
