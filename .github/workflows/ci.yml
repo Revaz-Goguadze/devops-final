@@ -1,6 +1,6 @@
 name: CI/CD
 
-# Runs on every push and PR to main, plus manual dispatch.
+# Runs on every push and PR to main/develop, plus manual dispatch.
 on:
   push:
     branches: [main, develop]
