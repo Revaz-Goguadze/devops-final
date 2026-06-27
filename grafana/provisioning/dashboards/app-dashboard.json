@@ -1,0 +1,112 @@
+{
+  "uid": "app-observability",
+  "title": "Application Observability",
+  "tags": ["observability", "lab"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate (req/s) by endpoint",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(app_requests_total[1m])) by (endpoint)",
+          "legendFormat": "{{endpoint}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Errors per minute",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": { "mode": "line" }
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(app_errors_total[1m])",
+          "legendFormat": "errors/min"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Total requests",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(app_requests_total)",
+          "legendFormat": "requests"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Total errors",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(app_errors_total)",
+          "legendFormat": "errors"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Application logs (JSON)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 14 },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=\"app\"}"
+        }
+      ]
+    }
+  ]
+}

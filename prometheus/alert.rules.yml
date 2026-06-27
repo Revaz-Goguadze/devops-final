@@ -1,0 +1,36 @@
+groups:
+  - name: app-alerts
+    rules:
+      # Fires when the app produces more than 5 errors in the last minute.
+      # increase(app_errors_total[1m]) = number of new errors counted in 1 minute.
+      - alert: HighErrorRate
+        expr: increase(app_errors_total[1m]) > 5
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: application error rate above 5/min"
+          description: "{{ $value | printf \"%.0f\" }} errors in the last minute (threshold: 5)."
+
+      # Fires when a scrape target stops responding (process crashed, OOM, etc.).
+      # up == 0 means Prometheus could not scrape the target on its last attempt.
+      - alert: ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: scrape target {{ $labels.job }} is down"
+          description: "Prometheus has been unable to scrape {{ $labels.instance }} (job {{ $labels.job }}) for 30s."
+
+      # Reliability/SLO signal: warns when the rolling availability of the app
+      # (successful requests / total) drops below the 99% objective over 5m.
+      - alert: AvailabilityBelowSLO
+        expr: |
+          (1 - (increase(app_errors_total[5m]) / clamp_min(increase(app_requests_total{endpoint!="/metrics"}[5m]), 1))) < 0.99
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WARNING: app availability below 99% SLO"
+          description: "5m success ratio is {{ $value | printf \"%.3f\" }} (objective: >= 0.99)."

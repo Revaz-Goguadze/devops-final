@@ -1,0 +1,7 @@
+# Keep build context (and the image) lean and free of dev/test artifacts.
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+test_app.py
+requirements-dev.txt
