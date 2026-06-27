@@ -297,13 +297,47 @@ make clean       # stop and remove data volumes
 
 ### Final-project evidence (new)
 
-> These demonstrate the new functionality. Capture and drop them into `docs/`.
+These demonstrate the newly added functionality.
 
-| # | Evidence to capture | Suggested filename |
-| --- | --- | --- |
-| 1 | `make setup` finishing with all verification checks **OK** | `docs/setup-verify.png` |
-| 2 | `docker compose ps` showing every container **healthy** | `docs/compose-healthy.png` |
-| 3 | `make security` output / summary | `docs/security-scan.png` |
-| 4 | `make deploy` then `make rollback` succeeding | `docs/deploy-rollback.png` |
-| 5 | GitHub Actions pipeline green (with security stages) | `docs/ci-pipeline.png` |
-| 6 | `ServiceDown` / `HighErrorRate` alert firing | `docs/alert-firing.png` |
+#### Environment automation & health checks
+`make verify` — every service reachable and Prometheus scraping the app:
+
+![verification all OK](docs/setup-verify.png)
+
+`docker compose ps` — every container reports `healthy`:
+
+![containers healthy](docs/compose-healthy.png)
+
+#### Reliability — deploy & rollback
+`make deploy` snapshots the current image, releases the new one, and verifies it;
+`make rollback` restores the last known-good image and re-verifies:
+
+![deploy start: snapshot rollback point](docs/deploy-rollback-1.png)
+![deploy succeeded then rollback complete](docs/deploy-rollback-2.png)
+
+#### Improved alerting (three rules)
+Prometheus — `HighErrorRate` **FIRING**, `ServiceDown` and `AvailabilityBelowSLO` registered:
+
+![Prometheus alerts firing](docs/alert-firing-1.png)
+
+Grafana Alerting — `HighErrorRate` firing detail and all three rules grouped:
+
+![Grafana alert firing detail](docs/alert-firing-2.png)
+![Grafana alert rules grouped](docs/alert-firing-3.png)
+
+#### Security automation (`make security`)
+The full suite — hadolint, Trivy filesystem (deps + misconfig + secrets), Trivy
+image, gitleaks, and pip-audit:
+
+![hadolint + Trivy filesystem](docs/security-scan-1.png)
+![Trivy filesystem report](docs/security-scan-2.png)
+![Trivy filesystem summary](docs/security-scan-3.png)
+![Trivy image summary](docs/security-scan-4.png)
+![Trivy image findings + gitleaks no leaks + pip-audit clean](docs/security-scan-5.png)
+
+#### CI/CD pipeline
+GitHub Actions running lint/test, security, and build-verify jobs:
+
+![CI pipeline green](docs/ci-pipeline.png)
+
+> `docs/ci-pipeline.png` is captured from the Actions tab after the first push.
