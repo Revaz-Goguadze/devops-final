@@ -329,11 +329,8 @@ Grafana Alerting — `HighErrorRate` firing detail and all three rules grouped:
 The full suite — hadolint, Trivy filesystem (deps + misconfig + secrets), Trivy
 image, gitleaks, and pip-audit:
 
-![hadolint + Trivy filesystem](docs/security-scan-1.png)
-![Trivy filesystem report](docs/security-scan-2.png)
-![Trivy filesystem summary](docs/security-scan-3.png)
-![Trivy image summary](docs/security-scan-4.png)
-![Trivy image findings + gitleaks no leaks + pip-audit clean](docs/security-scan-5.png)
+![hadolint + Trivy filesystem scan starting](docs/security-scan-1.png)
+![Trivy clean, gitleaks no leaks, pip-audit clean — scan PASSED](docs/security-scan-2.png)
 
 #### CI/CD pipeline
 GitHub Actions running lint/test, security, and build-verify jobs:
