@@ -1,4 +1,6 @@
-FROM python:3.12-slim
+# Pinned by digest for reproducibility and to lock in the patched OS packages
+# (the floating python:3.12-slim tag shipped an openssl CVE in an older revision).
+FROM python:3.12-slim@sha256:6c4dd321d176d61ea848dc8c73a4f7dbae8f70e0ee48bb411ea2f045b599fa8e
 
 # Non-root runtime user (security hardening; avoids running the app as root).
 RUN useradd --create-home --uid 10001 appuser
