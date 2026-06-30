@@ -350,6 +350,12 @@ the Mailpit inbox at http://localhost:8025):
 
 ![Alertmanager routing HighErrorRate to the mailpit receiver](docs/alert-notification-1.png)
 
+And the emails actually delivered — the **Mailpit inbox** holds the
+`[FIRING:1]` and `[RESOLVED]` `HighErrorRate` notifications
+(`alertmanager@final.local` → `oncall@final.local`):
+
+![Mailpit inbox with FIRING and RESOLVED alert emails](docs/alert-notification-2.png)
+
 #### Security automation (`make security`)
 The full suite — hadolint, Trivy filesystem (deps + misconfig + secrets), Trivy
 image, gitleaks, and pip-audit:
