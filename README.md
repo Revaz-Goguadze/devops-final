@@ -344,11 +344,11 @@ Grafana Alerting — `HighErrorRate` firing detail and all three rules grouped:
 ![Grafana alert firing detail](docs/alert-firing-2.png)
 ![Grafana alert rules grouped](docs/alert-firing-3.png)
 
-Notification path — the fired alert delivered as an email in the **Mailpit**
-inbox (and routed through Alertmanager):
+Notification path — **Alertmanager** shows the fired `HighErrorRate` alert
+grouped under the **`mailpit`** receiver, i.e. routed out to email (delivered to
+the Mailpit inbox at http://localhost:8025):
 
-![Mailpit inbox with HighErrorRate alert email](docs/alert-notification-1.png)
-![Alertmanager showing the active alert](docs/alert-notification-2.png)
+![Alertmanager routing HighErrorRate to the mailpit receiver](docs/alert-notification-1.png)
 
 #### Security automation (`make security`)
 The full suite — hadolint, Trivy filesystem (deps + misconfig + secrets), Trivy
