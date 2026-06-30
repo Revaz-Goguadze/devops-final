@@ -45,6 +45,8 @@ make setup          # or: ./scripts/setup.sh
 | Prometheus | http://localhost:9090 | targets, alert rules, `/alerts` |
 | Grafana | http://localhost:3001 | login `admin` / `admin` |
 | Loki | http://localhost:3100 | queried through Grafana |
+| Alertmanager | http://localhost:9093 | routes alerts → email |
+| Mailpit | http://localhost:8025 | inbox where alert emails land |
 
 Tear down with `make down` (keep data) or `make clean` (remove volumes).
 
@@ -72,6 +74,8 @@ flowchart LR
 
     PROM -- "PromQL / alerts" --> GRAF["Grafana<br/>dashboards + Alerting"]
     LOKI -- "LogQL" --> GRAF
+    PROM -- "firing/resolved" --> AM["Alertmanager<br/>route · group · dedup"]
+    AM -- "email (SMTP)" --> MP["Mailpit<br/>inbox UI"]
 
     subgraph cicd["CI/CD (GitHub Actions) + local automation"]
         CI["lint · test · security scans<br/>build · image scan · deploy-verify"]
@@ -79,12 +83,13 @@ flowchart LR
     CI -- "make deploy / verify / rollback" --> app_box
 ```
 
-Two data paths:
+Data paths:
 
 ```
 Flask app ──/metrics (scrape)──▶ Prometheus ──PromQL──▶ Grafana (dashboards)
     │                                  │
-    │                                  └──alert rules──▶ Grafana (Alerting tab)
+    │                                  ├──alert rules──▶ Grafana (Alerting tab)
+    │                                  └──alerts──▶ Alertmanager ──email──▶ Mailpit (inbox)
     └──stdout (JSON)──▶ Promtail ──push──▶ Loki ──LogQL──▶ Grafana (logs)
 ```
 
@@ -99,7 +104,7 @@ All capabilities from earlier assignments remain operational in this project:
 | Version control (Git) | this repository, conventional commits |
 | Branching strategy | `main` (release) + `develop` (integration) + `feature/*` |
 | Continuous Integration | `.github/workflows/ci.yml` (lint, test) |
-| Continuous Deployment | `scripts/deploy.sh` + CI `build-verify` job |
+| Continuous Deployment | scripted deploy (`scripts/deploy.sh`: build → release → verify → auto-rollback); CI `build-verify` job builds, scans, deploys & verifies the stack on the runner |
 | Infrastructure as Code / automation | `docker-compose.yml`, `scripts/*.sh`, `Makefile` |
 | Docker / Docker Compose | `app/Dockerfile`, `docker-compose.yml` |
 | Monitoring | Prometheus + Grafana dashboard |
@@ -136,15 +141,16 @@ make security        # scripts/security-scan.sh
 
 | Check | Tool | Scope |
 | --- | --- | --- |
-| Dependency vulnerabilities | **Trivy** (`fs`) + **pip-audit** | Python packages & CVEs |
+| Dependency vulnerabilities | **Trivy** (`fs`) + **pip-audit** | Python packages & CVEs (runtime **and** dev deps) |
 | Container image scanning | **Trivy** (`image`) | built `final-app:latest` |
 | Secrets scanning | **gitleaks** | git history & working tree |
 | IaC / Docker / config validation | **Trivy** (`misconfig`) + **hadolint** | Dockerfile, compose, configs |
 | CI/CD integration | GitHub Actions `security` job | runs on every push/PR |
 
-All scanners run from their official Docker images (nothing to install) and the
-same checks run in CI (`.github/workflows/ci.yml`), so findings are reproducible
-locally. Scans fail the pipeline on **HIGH/CRITICAL fixable** findings.
+All scanners run from their official Docker images at **pinned versions**
+(Trivy `0.65.0`, gitleaks `v8.21.2`, hadolint `v2.12.0`) that match CI
+(`.github/workflows/ci.yml`), so findings are reproducible locally — no floating
+`latest` tags. Scans fail the pipeline on **HIGH/CRITICAL fixable** findings.
 
 **Hardening applied:** the app image runs as a **non-root user**, a
 `.dockerignore` keeps test/dev artifacts out of the image, dependencies were
@@ -166,7 +172,7 @@ in a gitignored `.env`, and Grafana credentials default only for local use.
 | **Health monitoring** | `/health` endpoint, Docker `HEALTHCHECK`, compose healthchecks with `service_healthy` ordering |
 | **Rollback procedure** | `make rollback` — restores the last known-good image (`final-app:previous`) and re-verifies |
 | **Failure recovery automation** | `restart: unless-stopped` on all services + auto-rollback on failed deploy verification |
-| **Improved alerting** | added `ServiceDown` (target down) and `AvailabilityBelowSLO` alerts alongside `HighErrorRate` |
+| **Improved alerting** | added `ServiceDown` + `AvailabilityBelowSLO` alongside `HighErrorRate`, **plus a real notification path**: Prometheus → Alertmanager → email → Mailpit inbox |
 | **Service availability objectives** | [`docs/SLO.md`](docs/SLO.md) — 99% availability SLO with error budget policy |
 | **Incident response** | [`docs/INCIDENT-RESPONSE.md`](docs/INCIDENT-RESPONSE.md) — detection → triage → recover → post-incident runbook |
 
@@ -212,17 +218,29 @@ label, and **pushes** to **Loki**. Query in Grafana Explore:
 {container="app"} | json | level="ERROR"
 ```
 
-### Alerting
+### Alerting & notifications
 `prometheus/alert.rules.yml` defines three alerts:
 
 - **HighErrorRate** (critical) — `increase(app_errors_total[1m]) > 5`
 - **ServiceDown** (critical) — `up == 0` for 30s
 - **AvailabilityBelowSLO** (warning) — 5m success ratio `< 0.99`
 
-Fire the critical alert on demand:
+Alerts don't just light up a UI — they are **routed to a real notification
+channel**. Prometheus forwards firing/resolved alerts to **Alertmanager**
+(`alertmanager/alertmanager.yml`), which emails them to **Mailpit**, a local SMTP
+sink with a web inbox. No external mail server, nothing paid — the whole path is
+on the Compose network:
+
+```
+alert fires → Prometheus → Alertmanager (route/group/dedup) → email → Mailpit inbox (http://localhost:8025)
+```
+
+Fire the critical alert on demand and watch the email arrive:
 
 ```bash
-make alert            # sends 12 errors; watch Prometheus /alerts or Grafana Alerting
+make alert            # sends 12 errors
+# then open the inbox: http://localhost:8025  -> "[FIRING:1] HighErrorRate"
+# or Prometheus /alerts, Grafana Alerting, Alertmanager http://localhost:9093
 ```
 
 ---
@@ -251,7 +269,7 @@ make clean       # stop and remove data volumes
 ```
 .
 ├── Makefile                        # single entry point for every operation
-├── docker-compose.yml              # 5 services + healthchecks + env config
+├── docker-compose.yml              # 7 services + healthchecks + env config
 ├── .env.example                    # documented, reproducible configuration
 ├── app/
 │   ├── app.py                      # Flask app: /health, /metrics, JSON logs
@@ -261,8 +279,9 @@ make clean       # stop and remove data volumes
 │   ├── Dockerfile                  # non-root, HEALTHCHECK, hardened
 │   └── .dockerignore
 ├── prometheus/
-│   ├── prometheus.yml              # scrape config
+│   ├── prometheus.yml              # scrape config + alertmanager wiring
 │   └── alert.rules.yml             # HighErrorRate + ServiceDown + SLO alerts
+├── alertmanager/alertmanager.yml   # routes alerts to Mailpit (email)
 ├── loki/loki-config.yml
 ├── promtail/promtail-config.yml
 ├── grafana/provisioning/           # auto-wired datasources + dashboard
@@ -324,6 +343,12 @@ Grafana Alerting — `HighErrorRate` firing detail and all three rules grouped:
 
 ![Grafana alert firing detail](docs/alert-firing-2.png)
 ![Grafana alert rules grouped](docs/alert-firing-3.png)
+
+Notification path — the fired alert delivered as an email in the **Mailpit**
+inbox (and routed through Alertmanager):
+
+![Mailpit inbox with HighErrorRate alert email](docs/alert-notification-1.png)
+![Alertmanager showing the active alert](docs/alert-notification-2.png)
 
 #### Security automation (`make security`)
 The full suite — hadolint, Trivy filesystem (deps + misconfig + secrets), Trivy

@@ -1,0 +1,18 @@
+# Routes Prometheus alerts to a real notification channel.
+# For a fully-local, free setup the receiver is Mailpit (an SMTP sink with a web
+# inbox at http://localhost:8025) — alerts arrive as emails you can open.
+route:
+  receiver: mailpit
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: mailpit
+    email_configs:
+      - to: 'oncall@final.local'
+        from: 'alertmanager@final.local'
+        smarthost: 'mailpit:1025'   # Mailpit SMTP
+        require_tls: false
+        send_resolved: true         # also notify when an alert clears

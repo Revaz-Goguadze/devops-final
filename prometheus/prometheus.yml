@@ -5,6 +5,12 @@ global:
 rule_files:
   - /etc/prometheus/alert.rules.yml
 
+# Send firing/resolved alerts to Alertmanager, which routes them to Mailpit.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   - job_name: app
     static_configs:
@@ -13,3 +19,7 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]

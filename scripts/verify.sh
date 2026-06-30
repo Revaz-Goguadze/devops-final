@@ -8,6 +8,8 @@ APP_PORT="${APP_PORT:-8001}"
 PROMETHEUS_PORT="${PROMETHEUS_PORT:-9090}"
 GRAFANA_PORT="${GRAFANA_PORT:-3001}"
 LOKI_PORT="${LOKI_PORT:-3100}"
+ALERTMANAGER_PORT="${ALERTMANAGER_PORT:-9093}"
+MAILPIT_UI_PORT="${MAILPIT_UI_PORT:-8025}"
 
 fail=0
 
@@ -34,6 +36,8 @@ wait_for "app-metrics" "http://localhost:${APP_PORT}/metrics"      'app_requests
 wait_for "prometheus" "http://localhost:${PROMETHEUS_PORT}/-/healthy" 'Prometheus'
 wait_for "grafana"    "http://localhost:${GRAFANA_PORT}/api/health"   'database'
 wait_for "loki"       "http://localhost:${LOKI_PORT}/ready"           'ready'
+wait_for "alertmgr"   "http://localhost:${ALERTMANAGER_PORT}/-/healthy" 'OK'
+wait_for "mailpit"    "http://localhost:${MAILPIT_UI_PORT}/api/v1/info" 'Version'
 
 # Assert Prometheus has the app target UP (deployment is truly observable).
 printf "  %-12s " "scrape-up"

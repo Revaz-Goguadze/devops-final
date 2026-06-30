@@ -54,10 +54,10 @@ jobs:
             --scanners vuln,misconfig,secret \
             --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress /src
 
-      - name: pip-audit (Python dependency CVEs)
+      - name: pip-audit (Python dependency CVEs — runtime + dev)
         run: |
           pip install pip-audit
-          pip-audit -r app/requirements.txt
+          pip-audit -r app/requirements.txt -r app/requirements-dev.txt
 
   # ----------------------------------------------- build + image scan + verify
   build-verify:

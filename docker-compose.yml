@@ -95,6 +95,39 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - mailpit
+    restart: unless-stopped
+
+  # Local SMTP sink + web inbox — Alertmanager emails land here (no external mail).
+  mailpit:
+    image: axllent/mailpit:v1.20.0
+    container_name: mailpit
+    environment:
+      - MP_SMTP_BIND_ADDR=0.0.0.0:1025
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"   # web inbox
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   prometheus-data:
   loki-data:
