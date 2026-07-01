@@ -257,6 +257,7 @@ make alert            # sends 12 errors
 ## Command reference
 
 ```text
+./run.sh         # one-command start (thin wrapper around make setup)
 make help        # list all commands
 make setup       # one-command bootstrap: config + build + start + verify
 make up / down   # start / stop the stack
