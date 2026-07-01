@@ -40,9 +40,19 @@ wait_for "alertmgr"   "http://localhost:${ALERTMANAGER_PORT}/-/healthy" 'OK'
 wait_for "mailpit"    "http://localhost:${MAILPIT_UI_PORT}/api/v1/info" 'Version'
 
 # Assert Prometheus has the app target UP (deployment is truly observable).
+# Poll with retries: right after a container recreate, Prometheus needs a scrape
+# interval or two before up{job="app"} flips back to 1, so a one-shot check races.
 printf "  %-12s " "scrape-up"
-up="$(curl -fsS --max-time 3 "http://localhost:${PROMETHEUS_PORT}/api/v1/query?query=up%7Bjob%3D%22app%22%7D" 2>/dev/null || true)"
-if printf '%s' "$up" | grep -q '"value":\[.*"1"\]'; then
+scrape_ok=0
+for _ in $(seq 1 30); do
+  up="$(curl -fsS --max-time 3 "http://localhost:${PROMETHEUS_PORT}/api/v1/query?query=up%7Bjob%3D%22app%22%7D" 2>/dev/null || true)"
+  if printf '%s' "$up" | grep -q '"value":\[.*"1"\]'; then
+    scrape_ok=1
+    break
+  fi
+  sleep 2
+done
+if [ "$scrape_ok" -eq 1 ]; then
   echo "OK"
 else
   echo "FAILED (Prometheus target up{job=\"app\"} != 1)"
