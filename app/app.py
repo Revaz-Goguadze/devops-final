@@ -7,7 +7,7 @@ import logging
 import random
 import sys
 
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, redirect, render_template_string, request
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from pythonjsonlogger import jsonlogger
 
@@ -69,6 +69,62 @@ def error():
 @app.route("/metrics")
 def metrics():
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
+
+# --- Dynamic control panel -------------------------------------------------
+# An HTML form that lets a user drive the observability stack from the browser:
+# submitting it generates traffic server-side, which moves the Prometheus
+# counters, emits JSON logs to Loki, and (with enough errors) fires the
+# HighErrorRate alert. This is the project's "dynamic web application + input
+# form" surface, wired into the metrics/logging/alerting it already exposes.
+UI_TEMPLATE = """<!doctype html>
+<title>Observability control panel</title>
+<h1>Observability control panel</h1>
+<p>Generate traffic to drive metrics, logs, and alerts.</p>
+<form method="post" action="/simulate">
+  <label>Requests: <input type="number" name="count" value="10" min="1" max="200"></label>
+  <label>Type:
+    <select name="kind">
+      <option value="work">work (~10% fail)</option>
+      <option value="error">error (always fail)</option>
+    </select>
+  </label>
+  <button type="submit">Send</button>
+</form>
+{% if msg %}<p><strong>{{ msg }}</strong></p>{% endif %}
+<p>See: <a href="/metrics">/metrics</a> · Prometheus /alerts · Grafana dashboards.</p>
+"""
+
+
+@app.route("/ui")
+def ui():
+    """Dynamic HTML page with the traffic-generation form."""
+    REQUESTS.labels(endpoint="/ui").inc()
+    return render_template_string(UI_TEMPLATE, msg=request.args.get("msg", ""))
+
+
+@app.route("/simulate", methods=["POST"])
+def simulate():
+    """Handle the form POST: generate N requests server-side and report results."""
+    REQUESTS.labels(endpoint="/simulate").inc()
+    try:
+        count = max(1, min(200, int(request.form.get("count", 10))))
+    except (TypeError, ValueError):
+        count = 10
+    kind = request.form.get("kind", "work")
+
+    errors = 0
+    for _ in range(count):
+        REQUESTS.labels(endpoint=f"/simulate:{kind}").inc()
+        if kind == "error" or random.random() < 0.1:
+            ERRORS.inc()
+            errors += 1
+            logger.error("simulated traffic error", extra={"endpoint": "/simulate", "status": 500})
+        else:
+            logger.info("simulated traffic ok", extra={"endpoint": "/simulate", "status": 200})
+
+    logger.info("simulate batch done", extra={"count": count, "kind": kind, "errors": errors})
+    return redirect(f"/ui?msg=Sent {count} '{kind}' requests ({errors} errors).")
 
 
 if __name__ == "__main__":
