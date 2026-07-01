@@ -2,17 +2,32 @@
 # For a fully-local, free setup the receiver is Mailpit (an SMTP sink with a web
 # inbox at http://localhost:8025) — alerts arrive as emails you can open.
 route:
-  receiver: mailpit
-  group_by: ['alertname']
+  receiver: mailpit-warning        # default for any unmatched (e.g. warning) alert
+  group_by: ['alertname', 'severity']
   group_wait: 10s
   group_interval: 1m
   repeat_interval: 1h
+  routes:
+    # Severity-based routing: critical pages the on-call address and repeats
+    # faster; warnings go to the standard inbox. Both land in Mailpit locally.
+    - matchers: ['severity="critical"']
+      receiver: mailpit-critical
+      repeat_interval: 30m
+    - matchers: ['severity="warning"']
+      receiver: mailpit-warning
 
 receivers:
-  - name: mailpit
+  - name: mailpit-critical
     email_configs:
       - to: 'oncall@final.local'
         from: 'alertmanager@final.local'
         smarthost: 'mailpit:1025'   # Mailpit SMTP
         require_tls: false
         send_resolved: true         # also notify when an alert clears
+  - name: mailpit-warning
+    email_configs:
+      - to: 'alerts@final.local'
+        from: 'alertmanager@final.local'
+        smarthost: 'mailpit:1025'
+        require_tls: false
+        send_resolved: true

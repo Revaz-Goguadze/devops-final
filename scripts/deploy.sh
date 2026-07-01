@@ -8,11 +8,23 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 IMAGE="final-app"
+APP_PORT="${APP_PORT:-8001}"
 
 echo "==> Snapshotting current image as rollback point"
 if docker image inspect "${IMAGE}:latest" >/dev/null 2>&1; then
-  docker tag "${IMAGE}:latest" "${IMAGE}:previous"
-  echo "    ${IMAGE}:latest -> ${IMAGE}:previous"
+  # Only promote the current image to the rollback point if it is verifiably
+  # healthy right now — so ${IMAGE}:previous is always a *last known-good* image.
+  # If the running app is unhealthy, keep the existing known-good :previous
+  # rather than overwriting it with an unverified/broken image.
+  if curl -fsS --max-time 3 "http://localhost:${APP_PORT}/health" 2>/dev/null | grep -q '"status": *"healthy"'; then
+    docker tag "${IMAGE}:latest" "${IMAGE}:previous"
+    echo "    current image healthy -> saved as ${IMAGE}:previous (known-good)"
+  elif docker image inspect "${IMAGE}:previous" >/dev/null 2>&1; then
+    echo "    current image not verified healthy — keeping existing ${IMAGE}:previous"
+  else
+    docker tag "${IMAGE}:latest" "${IMAGE}:previous"
+    echo "    no prior rollback point — snapshotting current ${IMAGE}:latest"
+  fi
 else
   echo "    no existing ${IMAGE}:latest (first deploy, nothing to snapshot)"
 fi
