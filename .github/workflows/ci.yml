@@ -101,6 +101,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-verify]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Record this run as a GitHub Deployment under the "production" environment,
+    # so successful releases are tracked on the repo's Environments/Deployments
+    # page (visible in the sidebar). The environment is local — no cloud target.
+    environment:
+      name: production
     steps:
       - uses: actions/checkout@v4
 

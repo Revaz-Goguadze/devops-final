@@ -366,6 +366,24 @@ And the emails actually delivered — the **Mailpit inbox** holds the
 
 ![Mailpit inbox with FIRING and RESOLVED alert emails](docs/alert-notification-2.png)
 
+#### Dynamic control panel driving the full chain
+The app's `/ui` page is a dynamic HTML **form**: submitting it generates traffic
+server-side (`POST /simulate`) that moves the Prometheus counters, emits JSON
+logs to Loki, and — with enough errors — fires the alert. It ties the "dynamic
+web application + input form" surface directly into the observability stack.
+
+![/ui observability control panel form](docs/ui-control-panel.png)
+
+Submitting the form with error traffic pushes `increase(app_errors_total[1m])`
+over the threshold — **`HighErrorRate` FIRING** in Prometheus (value shown):
+
+![HighErrorRate firing from /ui-generated traffic](docs/ui-alert-firing.png)
+
+…and the notification lands as email — the **Mailpit inbox** with both
+`[FIRING:1]` and `[RESOLVED]` `HighErrorRate` messages:
+
+![Mailpit inbox: FIRING and RESOLVED alert emails](docs/mailpit-alert-emails.png)
+
 #### Security automation (`make security`)
 The full suite — hadolint, Trivy filesystem (deps + misconfig + secrets), Trivy
 image, gitleaks, and pip-audit:
