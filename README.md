@@ -41,7 +41,7 @@ make setup          # or: ./scripts/setup.sh
 
 | Service | URL | Notes |
 | --- | --- | --- |
-| Application | http://localhost:8001 | `/`, `/work`, `/error`, `/health`, `/metrics` |
+| Application | http://localhost:8001 | `/`, `/ui` (form), `/work`, `/error`, `/health`, `/metrics` |
 | Prometheus | http://localhost:9090 | targets, alert rules, `/alerts` |
 | Grafana | http://localhost:3001 | login `admin` / `admin` |
 | Loki | http://localhost:3100 | queried through Grafana |
@@ -104,7 +104,7 @@ All capabilities from earlier assignments remain operational in this project:
 | Version control (Git) | this repository, conventional commits |
 | Branching strategy | `main` (release) + `develop` (integration) + `feature/*` |
 | Continuous Integration | `.github/workflows/ci.yml` (lint, test) |
-| Continuous Deployment | scripted deploy (`scripts/deploy.sh`: build → release → verify → auto-rollback); CI `build-verify` job builds, scans, deploys & verifies the stack on the runner |
+| Continuous Deployment | `main`-gated CI `deploy` job runs `scripts/deploy.sh` (build → release → verify → auto-rollback) + post-deploy notification check; same flow locally via `make deploy` — fully local, no paid cloud |
 | Infrastructure as Code / automation | `docker-compose.yml`, `scripts/*.sh`, `Makefile` |
 | Docker / Docker Compose | `app/Dockerfile`, `docker-compose.yml` |
 | Monitoring | Prometheus + Grafana dashboard |
@@ -152,9 +152,11 @@ All scanners run from their official Docker images at **pinned versions**
 (`.github/workflows/ci.yml`), so findings are reproducible locally — no floating
 `latest` tags. Scans fail the pipeline on **HIGH/CRITICAL fixable** findings.
 
-**Hardening applied:** the app image runs as a **non-root user**, a
-`.dockerignore` keeps test/dev artifacts out of the image, dependencies were
-upgraded to patched versions (e.g. Flask 3.1.3, gunicorn 23), secrets are kept
+**Hardening applied:** the app image runs as a **non-root user**; every
+container sets **`no-new-privileges:true`**; all Compose images are **pinned by
+digest** (not just tag) and the app base image is digest-pinned too; a
+`.dockerignore` keeps test/dev artifacts out of the image; dependencies were
+upgraded to patched versions (e.g. Flask 3.1.3, gunicorn 23); secrets are kept
 in a gitignored `.env`, and Grafana credentials default only for local use.
 
 > Note: the `python:3.12-slim` base image carries some OS-level CVEs with no
@@ -188,7 +190,7 @@ The pipeline (`.github/workflows/ci.yml`) runs on every push/PR to `main`/`devel
 
 ```
 lint-test ─┐
-           ├──▶ build-verify  (build → Trivy image scan → start stack → verify → teardown)
+           ├──▶ build-verify ──▶ deploy (main only)
 security ──┘
 ```
 
@@ -197,6 +199,13 @@ security ──┘
 3. **`build-verify`** — builds the image, scans it with Trivy, starts the full
    stack, runs `scripts/verify.sh` as a **post-deployment check**, and tears
    down. This gives automated **deployment verification** end to end.
+4. **`deploy` (only on push to `main`)** — the **continuous deployment** stage.
+   It brings up the environment and runs the real deployment automation
+   (`scripts/deploy.sh`: build → release → verify → **auto-rollback on failure**),
+   then runs an end-to-end **post-deploy notification check**
+   (`scripts/check-notification.sh` — fires an alert and asserts the email
+   reaches Mailpit). Fully local: **no paid cloud, no external secrets**, so any
+   evaluator can run the identical flow with `make deploy`.
 
 Local automation mirrors CI through the `Makefile`, so the same lint, test,
 security, deploy, verify, and rollback steps are runnable on any machine.
@@ -258,6 +267,7 @@ make security    # full security scan suite
 make test        # run unit tests
 make lint        # lint the Dockerfile
 make alert       # fire the CRITICAL alert
+make notify-check # prove the alert email reaches Mailpit (end-to-end)
 make logs        # tail all service logs
 make clean       # stop and remove data volumes
 ```

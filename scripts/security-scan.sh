@@ -47,7 +47,7 @@ if command -v pip-audit >/dev/null 2>&1; then
   pip-audit -r app/requirements.txt -r app/requirements-dev.txt || fail=1
 else
   docker run --rm -v "$PWD/app:/app" python:3.12-slim \
-    sh -c "pip install -q pip-audit && pip-audit -r /app/requirements.txt -r /app/requirements-dev.txt" || fail=1
+    sh -c "pip install -q pip-audit==2.7.3 && pip-audit -r /app/requirements.txt -r /app/requirements-dev.txt" || fail=1
 fi
 
 echo

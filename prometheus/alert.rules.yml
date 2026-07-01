@@ -14,6 +14,9 @@ groups:
 
       # Fires when a scrape target stops responding (process crashed, OOM, etc.).
       # up == 0 means Prometheus could not scrape the target on its last attempt.
+      # Intentionally covers every target: job="app" down is SEV1, any other
+      # observability target down is SEV2 (see docs/INCIDENT-RESPONSE.md triage).
+      # The $labels.job in the summary makes the affected target explicit.
       - alert: ServiceDown
         expr: up == 0
         for: 30s

@@ -29,3 +29,15 @@ def test_metrics_exposes_counters():
     body = client().get("/metrics").get_data(as_text=True)
     assert "app_requests_total" in body
     assert "app_errors_total" in body
+
+
+def test_ui_renders_form():
+    resp = client().get("/ui")
+    assert resp.status_code == 200
+    assert "<form" in resp.get_data(as_text=True)
+
+
+def test_simulate_generates_errors_and_redirects():
+    resp = client().post("/simulate", data={"count": "3", "kind": "error"})
+    assert resp.status_code == 302
+    assert "/ui" in resp.headers["Location"]

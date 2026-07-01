@@ -2,7 +2,7 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
-.PHONY: help setup up down deploy verify rollback security test lint logs alert clean
+.PHONY: help setup up down deploy verify rollback security test lint logs alert notify-check clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -32,14 +32,17 @@ security: ## Run the full security scan suite (Trivy, gitleaks, hadolint, pip-au
 test: ## Run application unit tests
 	cd app && pip install -q -r requirements.txt -r requirements-dev.txt && pytest -q
 
-lint: ## Lint the Dockerfile and Python app
-	docker run --rm -i hadolint/hadolint < app/Dockerfile
+lint: ## Lint the Dockerfile (hadolint, pinned to match CI/security-scan)
+	docker run --rm -i hadolint/hadolint:v2.12.0 < app/Dockerfile
 
 logs: ## Tail logs from all services
 	docker compose logs -f
 
 alert: ## Fire the CRITICAL HighErrorRate alert (sends 12 errors)
 	./scripts/trigger-alert.sh
+
+notify-check: ## Prove the alert email reaches Mailpit (app->Prometheus->Alertmanager->Mailpit)
+	./scripts/check-notification.sh
 
 clean: ## Stop the stack and remove data volumes
 	docker compose down -v

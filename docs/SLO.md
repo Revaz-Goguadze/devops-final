@@ -14,8 +14,10 @@ how they are measured from the existing Prometheus metrics.
 - **Availability** — Prometheus scrapes `app:8000/metrics` every 5s. `up == 0`
   means the last scrape failed; the `ServiceDown` alert fires after 30s.
 - **Success rate** — the rolling ratio
-  `1 - increase(app_errors_total[5m]) / increase(app_requests_total[5m])`.
-  The `AvailabilityBelowSLO` alert fires when this drops below `0.99`.
+  `1 - increase(app_errors_total[5m]) / increase(app_requests_total{endpoint!="/metrics"}[5m])`
+  (the `/metrics` scrape traffic is excluded so the ratio reflects real request
+  outcomes). The `AvailabilityBelowSLO` alert fires when this drops below `0.99`,
+  using the identical expression in `prometheus/alert.rules.yml`.
 
 ## Error budget policy
 

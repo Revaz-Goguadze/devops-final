@@ -24,9 +24,13 @@ docker compose up -d --build
 echo "==> [4/4] Verifying deployment"
 ./scripts/verify.sh
 
+# Load .env so the summary below reflects the actual configured ports/credentials
+# (compose already reads .env on its own; this is just for accurate output).
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
+
 echo
 echo "Environment ready."
-echo "  App         http://localhost:${APP_PORT:-8001}        (/, /work, /error, /health, /metrics)"
+echo "  App         http://localhost:${APP_PORT:-8001}        (/, /ui, /work, /error, /health, /metrics)"
 echo "  Prometheus  http://localhost:${PROMETHEUS_PORT:-9090}"
-echo "  Grafana     http://localhost:${GRAFANA_PORT:-3001}    (admin / admin)"
+echo "  Grafana     http://localhost:${GRAFANA_PORT:-3001}    (${GF_ADMIN_USER:-admin} / ${GF_ADMIN_PASSWORD:-admin})"
 echo "  Loki        http://localhost:${LOKI_PORT:-3100}"

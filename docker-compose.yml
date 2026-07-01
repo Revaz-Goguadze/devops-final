@@ -12,9 +12,11 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   prometheus:
-    image: prom/prometheus:v2.51.0
+    image: prom/prometheus:v2.51.0@sha256:5ccad477d0057e62a7cd1981ffcc43785ac10c5a35522dc207466ff7e7ec845f
     container_name: prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -34,9 +36,11 @@ services:
       app:
         condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   loki:
-    image: grafana/loki:2.9.4
+    image: grafana/loki:2.9.4@sha256:f379a20ce9dd815884ed6446aad8819b81a8ba4d36b548ca14be8cecbc6cbca0
     container_name: loki
     command: -config.file=/etc/loki/loki-config.yml
     volumes:
@@ -50,14 +54,17 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   promtail:
-    image: grafana/promtail:2.9.4
+    image: grafana/promtail:2.9.4@sha256:3667f68c8f33a4b7f09292b926a94a449322ab7fe4c7768ef32928598561f968
     container_name: promtail
     command: -config.file=/etc/promtail/promtail-config.yml
     volumes:
       - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp          # persist read positions across restarts
     # Promtail's minimal image has no wget/curl, so probe the HTTP server's
     # listening port (9080) with bash's /dev/tcp instead.
     healthcheck:
@@ -70,9 +77,11 @@ services:
       loki:
         condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   grafana:
-    image: grafana/grafana:10.4.2
+    image: grafana/grafana:10.4.2@sha256:7d5faae481a4c6f436c99e98af11534f7fd5e8d3e35213552dd1dd02bc393d2e
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
@@ -94,9 +103,11 @@ services:
       loki:
         condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.27.0@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
     container_name: alertmanager
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
@@ -112,10 +123,12 @@ services:
     depends_on:
       - mailpit
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   # Local SMTP sink + web inbox — Alertmanager emails land here (no external mail).
   mailpit:
-    image: axllent/mailpit:v1.20.0
+    image: axllent/mailpit:v1.20.0@sha256:6105f08377323c3e11a21b6e5e51648e33151fb4e525aab8d0961573c9e94a4d
     container_name: mailpit
     environment:
       - MP_SMTP_BIND_ADDR=0.0.0.0:1025
@@ -127,8 +140,11 @@ services:
       timeout: 5s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   prometheus-data:
   loki-data:
   grafana-data:
+  promtail-positions:
