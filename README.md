@@ -409,3 +409,23 @@ GitHub Actions — all three jobs green. Run summary (Status **Success**, gitlea
 verification on the runner:
 
 ![CI build, scan image & verify job](docs/ci-pipeline-4.png)
+
+#### Continuous deployment (main-gated `deploy` job)
+On push to `main`, the full pipeline runs through to the **`deploy`** stage —
+all four jobs green (`Lint & Test`, `Security scans`, `Build/scan/verify`,
+`Deploy`):
+
+![CI/CD pipeline including the deploy job — all green](docs/ci-pipeline-deploy.png)
+
+The `Deploy` job brings up the environment, runs the real deployment automation
+(`scripts/deploy.sh`: release → verify → auto-rollback), and finishes with the
+end-to-end **post-deploy notification-path check** (alert → email → Mailpit) —
+every step green:
+
+![Deploy job steps: release, verify, notification check](docs/deploy-job-steps.png)
+
+Because the job runs under the `production` **environment**, each successful
+release is recorded on the repository's **Deployments** page (Active, on `main`,
+via CI/CD) — visible from the repo sidebar:
+
+![GitHub production deployments — Active](docs/github-deployments.png)
